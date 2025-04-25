@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>3-Player Flappy Bird</title>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    canvas { display: block; background: #70c5ce; }
+    #controls { position: absolute; top: 10px; left: 10px; color: #fff; font-family: sans-serif; z-index: 10; }
+    table { border-collapse: collapse; }
+    th, td { padding: 5px 10px; border: 1px solid #fff; }
+    #start-button, #play-again-button {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      padding: 10px 20px;
+      font-size: 1.2rem;
+      background: #4caf50;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      display: none;
+      z-index: 10;
+    }
+    #start-button { display: block; }
+    #winner-text {
+      position: absolute;
+      top: 40%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 2rem;
+      color: white;
+      display: none;
+      z-index: 10;
+    }
+  </style>
+</head>
+<body>
+  <div id="controls">
+    <table>
+      <tr><th>Player</th><th>Color</th><th>Control</th></tr>
+      <tr><td>P1</td><td style="color:red;">Red</td><td>Q</td></tr>
+      <tr><td>P2</td><td style="color:green;">Green</td><td>Y</td></tr>
+      <tr><td>P3</td><td style="color:blue;">Blue</td><td>P</td></tr>
+    </table>
+  </div>
+  <canvas id="gameCanvas"></canvas>
+  <button id="start-button">Start Game</button>
+  <button id="play-again-button" style="top: 60%; display: none;">Play Again</button>
+  <div id="winner-text"></div>
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    ctx.globalAlpha = 0.2; // Set global alpha for transparency
+    const startButton = document.getElementById('start-button');
+    const playAgainButton = document.getElementById('play-again-button');
+    const winnerText = document.getElementById('winner-text');
+    const gravity = 0.1;
+    const lift = -4;
+    let pipes = [];
+    const pipeInterval = 90; // frames between pipes
+    let frameCount = 0;
+    let gameOver = false;
+
+    // Resize canvas to full screen
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    class Bird {
+      constructor(x, color, controlKey) {
+        this.x = x;
+        this.y = canvas.height / 2;
+        this.r = 12;
+        this.velocity = 0;
+        this.color = color;
+        this.controlKey = controlKey;
+        this.dead = false;
+      }
+      show() {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.r, 0, 2 * Math.PI);
+        ctx.fillStyle = this.color;
+        ctx.fill();
+      }
+      update() {
+        this.velocity += gravity;
+        this.y += this.velocity;
+        if (this.y > canvas.height - this.r || this.y < this.r) this.dead = true;
+      }
+      flap() {
+        this.velocity = lift;
+      }
+    }
+
+    class Pipe {
+      constructor() {
+        this.top = Math.random() * (canvas.height / 2);
+        this.bottom = Math.random() * (canvas.height / 2);
+        this.x = canvas.width;
+        this.w = 40;
+        this.speed = 2;
+      }
+      show() {
+        ctx.fillStyle = '#555';
+        ctx.fillRect(this.x, 0, this.w, this.top);
+        ctx.fillRect(this.x, canvas.height - this.bottom, this.w, this.bottom);
+      }
+      update() {
+        this.x -= this.speed;
+      }
+      offscreen() {
+        return this.x < -this.w;
+      }
+      hits(bird) {
+        if ((bird.y - bird.r < this.top || bird.y + bird.r > canvas.height - this.bottom) &&
+            bird.x + bird.r > this.x && bird.x - bird.r < this.x + this.w) {
+          return true;
+        }
+        return false;
+      }
+    }
+
+    let birds;
+
+    function resetGame() {
+      pipes = [];
+      frameCount = 0;
+      gameOver = false;
+      winnerText.style.display = 'none';
+      playAgainButton.style.display = 'none';
+      birds = [
+        new Bird(200, 'red', 'KeyQ'),
+        new Bird(200, 'green', 'KeyY'),
+        new Bird(200, 'blue', 'KeyP')
+      ];
+    }
+
+    document.addEventListener('keydown', e => {
+      birds.forEach(b => {
+        if (!b.dead && e.code === b.controlKey) b.flap();
+      });
+    });
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Add pipes periodically
+      if (frameCount % pipeInterval === 0) pipes.push(new Pipe());
+      frameCount++;
+
+      // Update and render pipes
+      for (let i = pipes.length - 1; i >= 0; i--) {
+        pipes[i].show();
+        pipes[i].update();
+        birds.forEach(b => {
+          if (!b.dead && pipes[i].hits(b)) b.dead = true;
+        });
+        if (pipes[i].offscreen()) pipes.splice(i, 1);
+      }
+
+      // Update and render birds
+      birds.forEach(b => {
+        if (!b.dead) {
+          b.update();
+          b.show();
+        }
+      });
+
+      // Check for winner
+      const alive = birds.filter(b => !b.dead);
+      if (!gameOver && alive.length <= 1) {
+        gameOver = true;
+        if (alive.length === 1) {
+          const winner = birds.indexOf(alive[0]) + 1;
+          winnerText.textContent = `Player ${winner} wins!`;
+        } else {
+          winnerText.textContent = 'No winners!';
+        }
+        winnerText.style.display = 'block';
+        playAgainButton.style.display = 'block';
+      }
+
+      if (!gameOver) requestAnimationFrame(draw);
+    }
+
+    startButton.addEventListener('click', () => {
+      startButton.style.display = 'none';
+      resetGame();
+      draw();
+    });
+
+    playAgainButton.addEventListener('click', () => {
+      playAgainButton.style.display = 'none';
+      resetGame();
+      draw();
+    });
+
+    // Initialize game state
+    resetGame();
+  </script>
+</body>
+</html>
