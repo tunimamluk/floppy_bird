@@ -1,15 +1,41 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <meta charset="UTF-8">
   <title>3-Player Flappy Bird</title>
   <style>
-    body { margin: 0; overflow: hidden; }
-    canvas { display: block; background: #70c5ce; }
-    #controls { position: absolute; top: 10px; left: 10px; color: #fff; font-family: sans-serif; z-index: 10; }
-    table { border-collapse: collapse; }
-    th, td { padding: 5px 10px; border: 1px solid #fff; }
-    #start-button, #play-again-button {
+    body {
+      margin: 0;
+      overflow: hidden;
+    }
+
+    canvas {
+      display: block;
+      background: #70c5ce;
+    }
+
+    #controls {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      color: #fff;
+      font-family: sans-serif;
+      z-index: 10;
+    }
+
+    table {
+      border-collapse: collapse;
+    }
+
+    th,
+    td {
+      padding: 5px 10px;
+      border: 1px solid #fff;
+    }
+
+    #start-button,
+    #play-again-button {
       position: absolute;
       top: 50%;
       left: 50%;
@@ -24,7 +50,11 @@
       display: none;
       z-index: 10;
     }
-    #start-button { display: block; }
+
+    #start-button {
+      display: block;
+    }
+
     #winner-text {
       position: absolute;
       top: 40%;
@@ -37,13 +67,34 @@
     }
   </style>
 </head>
+
 <body>
   <div id="controls">
     <table>
-      <tr><th>Player</th><th>Color</th><th>Control</th></tr>
-      <tr><td>P1</td><td style="color:red;">Red</td><td>Q</td></tr>
-      <tr><td>P2</td><td style="color:green;">Green</td><td>Y</td></tr>
-      <tr><td>P3</td><td style="color:blue;">Blue</td><td>P</td></tr>
+      <tr>
+        <th>Player</th>
+        <th>Color</th>
+        <th>Control</th>
+        <th>score</th>
+      </tr>
+      <tr>
+        <td>P1</td>
+        <td style="color:red;">Red</td>
+        <td>Q</td>
+        <td id="score-p1"></td>
+      </tr>
+      <tr>
+        <td>P2</td>
+        <td style="color:green;">Green</td>
+        <td>Y</td>
+        <td id="score-p2"></td>
+      </tr>
+      <tr>
+        <td>P3</td>
+        <td style="color:blue;">Blue</td>
+        <td>P</td>
+        <td id="score-p3"></td>
+      </tr>
     </table>
   </div>
   <canvas id="gameCanvas"></canvas>
@@ -60,9 +111,10 @@
     const gravity = 0.1;
     const lift = -4;
     let pipes = [];
-    const pipeInterval = 90; // frames between pipes
+    let pipeInterval = 90; // frames between pipes
     let frameCount = 0;
     let gameOver = false;
+    let score = 0;
 
     // Resize canvas to full screen
     function resizeCanvas() {
@@ -119,7 +171,7 @@
       }
       hits(bird) {
         if ((bird.y - bird.r < this.top || bird.y + bird.r > canvas.height - this.bottom) &&
-            bird.x + bird.r > this.x && bird.x - bird.r < this.x + this.w) {
+          bird.x + bird.r > this.x && bird.x - bird.r < this.x + this.w) {
           return true;
         }
         return false;
@@ -165,23 +217,34 @@
       }
 
       // Update and render birds
-      birds.forEach(b => {
+      birds.forEach((b, index) => {
         if (!b.dead) {
           b.update();
           b.show();
+
+          // Update score for each bird
+          const scoreCell = document.getElementById(`score-p${index + 1}`);
+          if (scoreCell) {
+            let points = Math.floor(frameCount / pipeInterval);
+            scoreCell.textContent = points; // All players now have the same scoring logic
+          }
         }
       });
 
       // Check for winner
       const alive = birds.filter(b => !b.dead);
-      if (!gameOver && alive.length <= 1) {
-        gameOver = true;
-        if (alive.length === 1) {
-          const winner = birds.indexOf(alive[0]) + 1;
-          winnerText.textContent = `Player ${winner} wins!`;
-        } else {
-          winnerText.textContent = 'No winners!';
+      if (alive.length === 1) {
+        // If only one bird is alive, continue the game and make it harder
+        pipes.forEach(pipe => {
+          pipe.speed += 0.001; // Gradually increase pipe speed
+        });
+        if (frameCount % 300 === 0 && pipeInterval > 30) {
+          pipeInterval -= 5; // Gradually decrease the interval between pipes
         }
+      } else if (alive.length === 0) {
+        // If no birds are alive, end the game
+        gameOver = true;
+        winnerText.textContent = 'No winners!';
         winnerText.style.display = 'block';
         playAgainButton.style.display = 'block';
       }
@@ -205,4 +268,5 @@
     resetGame();
   </script>
 </body>
+
 </html>
